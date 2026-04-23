@@ -155,3 +155,83 @@ export function calcStreakFromLogs(logs) {
 
   return streak
 }
+
+/* ================================================================
+   Interactions (Likes & Comments)
+   ================================================================ */
+
+/**
+ * 切换点赞状态
+ */
+export async function toggleLike(userId, logId) {
+  // 先查是否已点赞
+  const { data: existing } = await supabase
+    .from('likes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('log_id', logId)
+    .maybeSingle()
+
+  if (existing) {
+    // 取消赞
+    await supabase.from('likes').delete().eq('id', existing.id)
+    return false
+  } else {
+    // 点赞
+    await supabase.from('likes').insert({ user_id: userId, log_id: logId })
+    return true
+  }
+}
+
+/**
+ * 获取单条记录的互动数据（点赞数、是否已赞、评论列表）
+ */
+export async function getLogInteractions(logId, userId) {
+  // 1. 获取点赞总数
+  const { count: likeCount } = await supabase
+    .from('likes')
+    .select('*', { count: 'exact', head: true })
+    .eq('log_id', logId)
+
+  // 2. 当前用户是否已赞
+  let isLiked = false
+  if (userId) {
+    const { data } = await supabase
+      .from('likes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('log_id', logId)
+      .maybeSingle()
+    isLiked = !!data
+  }
+
+  // 3. 获取评论列表 (联表查询用户昵称)
+  const { data: comments } = await supabase
+    .from('comments')
+    .select('id, content, created_at, user_id, users(nickname)')
+    .eq('log_id', logId)
+    .order('created_at', { ascending: true })
+
+  return {
+    likeCount: likeCount || 0,
+    isLiked,
+    comments: comments || []
+  }
+}
+
+/**
+ * 发布评论
+ */
+export async function addComment(userId, logId, content) {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ user_id: userId, log_id: logId, content })
+    .select('*, users(nickname)')
+    .single()
+
+  if (error) {
+    console.error('评论失败:', error)
+    return null
+  }
+  return data
+}
