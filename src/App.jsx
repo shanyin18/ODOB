@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Check, Pencil, Calendar, Quote, Sparkles,
   ChevronDown, ChevronUp, Trash2, Users, LogOut,
-  Heart, MessageSquare, X, Send
+  Heart, MessageSquare, X, Send, Bell, Reply
 } from 'lucide-react'
 import {
   findOrCreateUser, getMyRecords, getMyTodayRecord,
   submitLog, deleteLog, getPublicFeed, calcStreakFromLogs,
-  toggleLike, getLogInteractions, addComment
+  toggleLike, getLogInteractions, addComment,
+  getNotifications, markNotificationsAsRead
 } from './lib/api'
 
 /* ================================================================ */
@@ -68,36 +69,14 @@ function NicknameGate({ onLogin }) {
   return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
       <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
-        style={{
-          maxWidth:'380px', width:'100%', borderRadius:'20px', padding:'40px 32px',
-          backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)',
-          boxShadow:'0 4px 24px rgba(0,0,0,0.06)', textAlign:'center',
-        }}
-      >
+        style={{ maxWidth:'380px', width:'100%', borderRadius:'20px', padding:'40px 32px', backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)', boxShadow:'0 4px 24px rgba(0,0,0,0.06)', textAlign:'center' }}>
         <div style={{ fontSize:'48px', marginBottom:'16px' }}>📖</div>
-        <h1 style={{ fontSize:'28px', fontWeight:700, fontFamily:'var(--font-serif)', color:'var(--color-text)', marginBottom:'8px' }}>
-          一日一书
-        </h1>
-        <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginBottom:'32px' }}>
-          输入昵称，开始你的阅读之旅
-        </p>
+        <h1 style={{ fontSize:'28px', fontWeight:700, fontFamily:'var(--font-serif)', color:'var(--color-text)', marginBottom:'8px' }}>一日一书</h1>
+        <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginBottom:'32px' }}>输入昵称，开始你的阅读之旅</p>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text" value={nick} onChange={e=>setNick(e.target.value)}
-            placeholder="你的昵称" required maxLength={20}
-            style={{ ...inputStyle, textAlign:'center', fontSize:'16px', marginBottom:'16px' }}
-            onFocus={e=>(e.target.style.borderColor='var(--color-accent)')}
-            onBlur={e=>(e.target.style.borderColor='var(--color-border)')}
-          />
+          <input type="text" value={nick} onChange={e=>setNick(e.target.value)} placeholder="你的昵称" required maxLength={20} style={{ ...inputStyle, textAlign:'center', fontSize:'16px', marginBottom:'16px' }} onFocus={e=>(e.target.style.borderColor='var(--color-accent)')} onBlur={e=>(e.target.style.borderColor='var(--color-border)')}/>
           {error && <p style={{ fontSize:'12px', color:'#ef4444', marginBottom:'12px' }}>{error}</p>}
-          <motion.button type="submit" whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }} disabled={loading}
-            style={{
-              width:'100%', padding:'12px', borderRadius:'12px', fontSize:'14px', fontWeight:600,
-              color:'#fff', cursor:'pointer', border:'none', fontFamily:'inherit',
-              background:'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)',
-              boxShadow:'0 2px 8px rgba(232,146,124,0.35)', opacity: loading?0.6:1,
-            }}
-          >
+          <motion.button type="submit" whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }} disabled={loading} style={{ width:'100%', padding:'12px', borderRadius:'12px', fontSize:'14px', fontWeight:600, color:'#fff', cursor:'pointer', border:'none', fontFamily:'inherit', background:'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)', boxShadow:'0 2px 8px rgba(232,146,124,0.35)', opacity: loading?0.6:1 }}>
             {loading ? '加入中...' : '进入广场'}
           </motion.button>
         </form>
@@ -107,30 +86,81 @@ function NicknameGate({ onLogin }) {
 }
 
 /* ================================================================
+   InboxModal
+   ================================================================ */
+function InboxModal({ notifications, onClose, onRead }) {
+  useEffect(() => { onRead() }, [onRead])
+
+  return (
+    <motion.div initial={{opacity:0, y:-10, scale:0.95}} animate={{opacity:1, y:0, scale:1}} exit={{opacity:0, y:-10, scale:0.95}} transition={{duration:0.2}}
+      style={{ position:'absolute', top:'40px', right:0, width:'320px', maxHeight:'400px', zIndex:50, background:'var(--color-surface)', borderRadius:'16px', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', overflowY:'auto', border:'1px solid var(--color-border)', textAlign:'left' }}>
+      <div style={{ padding:'16px', borderBottom:'1px solid var(--color-border-light)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--color-surface)', zIndex:2 }}>
+        <h3 style={{ fontSize:'15px', fontWeight:600, display:'flex', alignItems:'center', gap:'8px', color:'var(--color-text)' }}><Bell size={16}/> 消息通知</h3>
+        <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--color-text-tertiary)' }}><X size={16}/></button>
+      </div>
+      <div>
+        {notifications.length === 0 ? (
+          <p style={{ textAlign:'center', fontSize:'13px', color:'var(--color-text-tertiary)', padding:'40px 24px' }}>暂无新消息</p>
+        ) : notifications.map(n => (
+          <div key={n.id} style={{ padding:'16px', borderBottom:'1px solid var(--color-border-light)', display:'flex', gap:'12px', background: n.is_read ? 'transparent' : 'rgba(232,146,124,0.04)' }}>
+            <div style={{width:'32px', height:'32px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:700, color:'#fff', background:`hsl(${[...(n.actor?.nickname||'A')].reduce((a,c)=>a+c.charCodeAt(0),0)%360},65%,55%)`, flexShrink:0}}>
+              {(n.actor?.nickname||'A').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex:1 }}>
+              <p style={{ fontSize:'14px', color:'var(--color-text)' }}>
+                <strong>{n.actor?.nickname}</strong>
+                {n.type === 'like' && ' 赞了你的记录 '}
+                {n.type === 'comment' && ' 评论了你 '}
+                {n.type === 'reply' && ' 回复了你的评论 '}
+              </p>
+              <p style={{ fontSize:'13px', color:'var(--color-accent)', marginTop:'4px', fontWeight:500 }}>《{n.log?.title}》</p>
+              {n.content && <p style={{ fontSize:'13px', color:'var(--color-text-secondary)', marginTop:'6px', padding:'8px', background:'var(--color-bg)', borderRadius:'8px', fontStyle:'italic' }}>"{n.content}"</p>}
+              <p style={{ fontSize:'11px', color:'var(--color-text-tertiary)', marginTop:'8px' }}>{new Date(n.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+/* ================================================================
    HeroSection & TodayCard & HistoryGrid
    ================================================================ */
-function HeroSection({ streak, nickname, onLogout }) {
+function HeroSection({ streak, nickname, onLogout, notifications, onReadInbox }) {
+  const [isInboxOpen, setIsInboxOpen] = useState(false)
   const today = useMemo(()=>formatDateCN(),[])
+  const unreadCount = useMemo(()=>notifications.filter(n=>!n.is_read).length, [notifications])
+
   return (
     <motion.header initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} transition={{duration:0.5}}
       style={{ textAlign:'center', marginBottom:'2.5rem', position:'relative' }}>
-      <div style={{ position:'absolute', right:0, top:0, display:'flex', alignItems:'center', gap:'8px' }}>
-        <span style={{ fontSize:'13px', color:'var(--color-text-secondary)', fontWeight:500 }}>👋 {nickname}</span>
-        <button onClick={onLogout} title="退出登录" style={{ background:'none', border:'none', cursor:'pointer', color:'var(--color-text-tertiary)', display:'flex', alignItems:'center', padding:'4px' }}>
-          <LogOut size={14} />
-        </button>
+      
+      {/* Top Right Actions */}
+      <div style={{ position:'absolute', right:0, top:0, display:'flex', alignItems:'center', gap:'16px' }}>
+        <div style={{ position:'relative' }}>
+          <button onClick={()=>setIsInboxOpen(!isInboxOpen)} style={{ background:'none', border:'none', cursor:'pointer', color: unreadCount > 0 ? 'var(--color-text)' : 'var(--color-text-tertiary)', display:'flex', alignItems:'center', padding:'4px', position:'relative' }}>
+            <Bell size={18} />
+            {unreadCount > 0 && <span style={{ position:'absolute', top:'2px', right:'2px', width:'8px', height:'8px', borderRadius:'50%', background:'#ef4444', border:'2px solid var(--color-surface)' }}/>}
+          </button>
+          <AnimatePresence>
+            {isInboxOpen && <InboxModal notifications={notifications} onClose={()=>setIsInboxOpen(false)} onRead={onReadInbox} />}
+          </AnimatePresence>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <span style={{ fontSize:'13px', color:'var(--color-text-secondary)', fontWeight:500 }}>👋 {nickname}</span>
+          <button onClick={onLogout} title="退出登录" style={{ background:'none', border:'none', cursor:'pointer', color:'var(--color-text-tertiary)', display:'flex', alignItems:'center', padding:'4px' }}>
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
+
       <p style={{ fontSize:'13px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--color-text-tertiary)' }}>{today}</p>
-      <h1 style={{ marginTop:'12px', fontSize:'clamp(2rem,5vw,3rem)', fontWeight:700, letterSpacing:'-0.02em', fontFamily:'var(--font-serif)', color:'var(--color-text)' }}>
-        一日一书
-      </h1>
+      <h1 style={{ marginTop:'12px', fontSize:'clamp(2rem,5vw,3rem)', fontWeight:700, letterSpacing:'-0.02em', fontFamily:'var(--font-serif)', color:'var(--color-text)' }}>一日一书</h1>
       <p style={{ marginTop:'8px', fontSize:'15px', color:'var(--color-text-secondary)' }}>记录你每一天的阅读旅程</p>
+      
       <motion.div key={streak} initial={{scale:0.8,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:300,damping:20}}
-        style={{
-          display:'inline-flex', alignItems:'center', gap:'8px', marginTop:'24px', padding:'8px 20px', borderRadius:'9999px', fontSize:'14px', fontWeight:600,
-          background: streak>0 ? 'linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)' : 'var(--color-surface)',
-          color: streak>0 ? '#92400e' : 'var(--color-text-secondary)', border: streak>0 ? '1px solid #fde68a' : '1px solid var(--color-border)',
-        }}>
+        style={{ display:'inline-flex', alignItems:'center', gap:'8px', marginTop:'24px', padding:'8px 20px', borderRadius:'9999px', fontSize:'14px', fontWeight:600, background: streak>0 ? 'linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)' : 'var(--color-surface)', color: streak>0 ? '#92400e' : 'var(--color-text-secondary)', border: streak>0 ? '1px solid #fde68a' : '1px solid var(--color-border)' }}>
         {streak>0 ? (<><span className="fire-icon" style={{fontSize:'18px'}}>🔥</span><span>连续阅读 <strong>{streak}</strong> 天</span></>)
           : (<><BookOpen size={16}/><span>今天还没有打卡哦</span></>)}
       </motion.div>
@@ -154,9 +184,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
   }
 
   return (
-    <motion.section layout className={glowing?'glow-animate':''}
-      style={{ maxWidth:'36rem', margin:'0 auto 3rem', borderRadius:'16px', padding:'clamp(24px,4vw,32px)', backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)', boxShadow:'0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)' }}
-      initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.4,delay:0.15}}>
+    <motion.section layout className={glowing?'glow-animate':''} style={{ maxWidth:'36rem', margin:'0 auto 3rem', borderRadius:'16px', padding:'clamp(24px,4vw,32px)', backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)', boxShadow:'0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)' }} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.4,delay:0.15}}>
       <AnimatePresence mode="wait">
         {todayRecord ? (
           <motion.div key="done" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.95}} transition={{duration:0.3}}>
@@ -176,9 +204,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
                 </div>
               )}
             </div>
-            <button onClick={onDelete} style={{marginTop:'16px',display:'flex',alignItems:'center',gap:'6px',fontSize:'12px',cursor:'pointer',color:'var(--color-text-tertiary)',background:'none',border:'none',padding:0,fontFamily:'inherit',transition:'color 0.2s'}} onMouseEnter={e=>(e.currentTarget.style.color='#ef4444')} onMouseLeave={e=>(e.currentTarget.style.color='var(--color-text-tertiary)')}>
-              <Trash2 size={12}/>撤销打卡
-            </button>
+            <button onClick={onDelete} style={{marginTop:'16px',display:'flex',alignItems:'center',gap:'6px',fontSize:'12px',cursor:'pointer',color:'var(--color-text-tertiary)',background:'none',border:'none',padding:0,fontFamily:'inherit',transition:'color 0.2s'}} onMouseEnter={e=>(e.currentTarget.style.color='#ef4444')} onMouseLeave={e=>(e.currentTarget.style.color='var(--color-text-tertiary)')}><Trash2 size={12}/>撤销打卡</button>
           </motion.div>
         ) : (
           <motion.form key="form" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.95}} transition={{duration:0.3}} onSubmit={handleSubmit}>
@@ -195,8 +221,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
               <label style={{display:'block',fontSize:'12px',fontWeight:500,marginBottom:'6px',color:'var(--color-text-secondary)'}}>今日启发</label>
               <textarea value={takeaway} onChange={e=>setTakeaway(e.target.value)} placeholder="一句话记录你的收获…" rows={3} style={{...inputStyle,resize:'none'}} onFocus={e=>(e.target.style.borderColor='var(--color-accent)')} onBlur={e=>(e.target.style.borderColor='var(--color-border)')}/>
             </div>
-            <motion.button type="submit" whileHover={{scale:1.02}} whileTap={{scale:0.97}} disabled={submitting}
-              style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',padding:'12px',borderRadius:'12px',fontSize:'14px',fontWeight:600,color:'#fff',cursor:'pointer',border:'none',fontFamily:'inherit',background:'linear-gradient(135deg,var(--color-accent) 0%,var(--color-accent-hover) 100%)',boxShadow:'0 2px 8px rgba(232,146,124,0.35)',opacity:submitting?0.6:1}}>
+            <motion.button type="submit" whileHover={{scale:1.02}} whileTap={{scale:0.97}} disabled={submitting} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',padding:'12px',borderRadius:'12px',fontSize:'14px',fontWeight:600,color:'#fff',cursor:'pointer',border:'none',fontFamily:'inherit',background:'linear-gradient(135deg,var(--color-accent) 0%,var(--color-accent-hover) 100%)',boxShadow:'0 2px 8px rgba(232,146,124,0.35)',opacity:submitting?0.6:1}}>
               <Sparkles size={16}/>{submitting?'提交中...':'完成阅读'}
             </motion.button>
           </motion.form>
@@ -206,27 +231,22 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
   )
 }
 
-function BookCard({ record }) {
+function BookCard({ record, onClick }) {
   const dateObj = new Date(record.log_date + 'T00:00:00')
   const w = ['日','一','二','三','四','五','六']
   const displayDate = `${dateObj.getMonth()+1}/${dateObj.getDate()} 周${w[dateObj.getDay()]}`
 
   return (
-    <motion.div layout initial={{opacity:0,y:15}} animate={{opacity:1,y:0}} whileHover={{y:-5,boxShadow:'0 8px 25px rgba(0,0,0,0.08)'}} transition={{duration:0.2}}
-      style={{borderRadius:'16px',padding:'20px',cursor:'default',display:'flex',flexDirection:'column', backgroundColor:'var(--color-surface)',border:'1px solid var(--color-border-light)',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
-      <span style={{fontSize:'12px',fontWeight:500,padding:'4px 10px',borderRadius:'9999px',alignSelf:'flex-start',marginBottom:'12px', backgroundColor:'var(--color-bg)',color:'var(--color-text-tertiary)',border:'1px solid var(--color-border-light)',display:'inline-flex',alignItems:'center',gap:'4px'}}>
-        <Calendar size={10}/>{displayDate}
-      </span>
+    <motion.div layoutId={`card-${record.id}`} onClick={()=>onClick(record)} initial={{opacity:0,y:15}} animate={{opacity:1,y:0}} whileHover={{y:-5,boxShadow:'0 8px 25px rgba(0,0,0,0.08)'}} transition={{duration:0.2}} style={{borderRadius:'16px',padding:'20px',cursor:'pointer',display:'flex',flexDirection:'column', backgroundColor:'var(--color-surface)',border:'1px solid var(--color-border-light)',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+      <span style={{fontSize:'12px',fontWeight:500,padding:'4px 10px',borderRadius:'9999px',alignSelf:'flex-start',marginBottom:'12px', backgroundColor:'var(--color-bg)',color:'var(--color-text-tertiary)',border:'1px solid var(--color-border-light)',display:'inline-flex',alignItems:'center',gap:'4px'}}><Calendar size={10}/>{displayDate}</span>
       <h4 style={{fontSize:'15px',fontWeight:700,marginBottom:'2px',fontFamily:'var(--font-serif)',color:'var(--color-text)', display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>《{record.title}》</h4>
       {record.author && <p style={{fontSize:'12px',marginBottom:'8px',color:'var(--color-text-tertiary)'}}>{record.author}</p>}
-      {record.takeaway && (
-        <p style={{fontSize:'12px',marginTop:'auto',paddingTop:'12px',fontStyle:'italic',lineHeight:1.6,color:'var(--color-text-secondary)', borderTop:'1px solid var(--color-border-light)',display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}}>"{record.takeaway}"</p>
-      )}
+      {record.takeaway && <p style={{fontSize:'12px',marginTop:'auto',paddingTop:'12px',fontStyle:'italic',lineHeight:1.6,color:'var(--color-text-secondary)', borderTop:'1px solid var(--color-border-light)',display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}}>"{record.takeaway}"</p>}
     </motion.div>
   )
 }
 
-function HistoryGrid({ records, todayDate }) {
+function HistoryGrid({ records, todayDate, onLogClick, currentUser }) {
   const [expanded, setExpanded] = useState(false)
   const history = useMemo(()=>records.filter(r=>r.log_date!==todayDate),[records,todayDate])
   if (history.length===0) return null
@@ -234,6 +254,11 @@ function HistoryGrid({ records, todayDate }) {
   const VISIBLE = 6
   const visible = expanded ? history : history.slice(0,VISIBLE)
   const hasMore = history.length > VISIBLE
+
+  const handleClick = (record) => {
+    // 注入当前用户信息，让详情面板显示名字
+    onLogClick({ ...record, users: { nickname: currentUser.nickname } })
+  }
 
   return (
     <motion.section initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.4,delay:0.3}} style={{maxWidth:'56rem',margin:'0 auto 3rem'}}>
@@ -243,7 +268,7 @@ function HistoryGrid({ records, todayDate }) {
         <span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'9999px',backgroundColor:'var(--color-accent-soft)',color:'var(--color-accent)'}}>{history.length} 本</span>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'16px'}}>
-        <AnimatePresence>{visible.map(r=><BookCard key={r.id} record={r}/>)}</AnimatePresence>
+        <AnimatePresence>{visible.map(r=><BookCard key={r.id} record={r} onClick={handleClick}/>)}</AnimatePresence>
       </div>
       {hasMore && (
         <div style={{display:'flex',justifyContent:'center',marginTop:'24px'}}>
@@ -268,10 +293,7 @@ function FeedCard({ record, onClick }) {
   const hue = [...nickname].reduce((a,c)=>a+c.charCodeAt(0),0) % 360
 
   return (
-    <motion.div layoutId={`card-${record.id}`} onClick={()=>onClick(record)}
-      whileHover={{y:-4,boxShadow:'0 8px 25px rgba(0,0,0,0.08)'}} transition={{duration:0.3}}
-      style={{borderRadius:'16px',padding:'20px',cursor:'pointer',display:'flex',flexDirection:'column',
-        backgroundColor:'var(--color-surface)',border:'1px solid var(--color-border-light)',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+    <motion.div layoutId={`card-${record.id}`} onClick={()=>onClick(record)} whileHover={{y:-4,boxShadow:'0 8px 25px rgba(0,0,0,0.08)'}} transition={{duration:0.3}} style={{borderRadius:'16px',padding:'20px',cursor:'pointer',display:'flex',flexDirection:'column', backgroundColor:'var(--color-surface)',border:'1px solid var(--color-border-light)',boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
       <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'}}>
         <div style={{width:'28px',height:'28px',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center', fontSize:'12px',fontWeight:700,color:'#fff',background:`hsl(${hue},65%,55%)`,flexShrink:0}}>{initial}</div>
         <span style={{fontSize:'13px',fontWeight:600,color:'var(--color-text)',flex:1}}>{nickname}</span>
@@ -279,9 +301,7 @@ function FeedCard({ record, onClick }) {
       </div>
       <h4 style={{fontSize:'15px',fontWeight:700,marginBottom:'2px',fontFamily:'var(--font-serif)',color:'var(--color-text)', display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>《{record.title}》</h4>
       {record.author && <p style={{fontSize:'12px',marginBottom:'4px',color:'var(--color-text-tertiary)'}}>{record.author}</p>}
-      {record.takeaway && (
-        <p style={{fontSize:'12px',marginTop:'auto',paddingTop:'12px',fontStyle:'italic',lineHeight:1.6,color:'var(--color-text-secondary)', borderTop:'1px solid var(--color-border-light)',display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}}>"{record.takeaway}"</p>
-      )}
+      {record.takeaway && <p style={{fontSize:'12px',marginTop:'auto',paddingTop:'12px',fontStyle:'italic',lineHeight:1.6,color:'var(--color-text-secondary)', borderTop:'1px solid var(--color-border-light)',display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}}>"{record.takeaway}"</p>}
     </motion.div>
   )
 }
@@ -290,7 +310,6 @@ function PublicFeed({ feed, currentUserId, onLogClick }) {
   const [expanded, setExpanded] = useState(false)
   const others = useMemo(()=>feed.filter(r=>r.user_id!==currentUserId),[feed,currentUserId])
   if (others.length===0) return null
-
   const VISIBLE = 6
   const visible = expanded ? others : others.slice(0,VISIBLE)
   const hasMore = others.length > VISIBLE
@@ -317,13 +336,14 @@ function PublicFeed({ feed, currentUserId, onLogClick }) {
 }
 
 /* ================================================================
-   LogDetailModal — 点赞与评论
+   LogDetailModal — 点赞与评论嵌套
    ================================================================ */
 function LogDetailModal({ log, currentUserId, onClose }) {
   const [likes, setLikes] = useState(0)
   const [isLiked, setIsLiked] = useState(false)
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
+  const [replyTo, setReplyTo] = useState(null) // { id, nickname, user_id }
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -341,15 +361,19 @@ function LogDetailModal({ log, currentUserId, onClose }) {
     const next = !isLiked
     setIsLiked(next)
     setLikes(p => next ? p + 1 : Math.max(0, p - 1))
-    await toggleLike(currentUserId, log.id)
+    await toggleLike(currentUserId, log.id, log.user_id)
   }
 
   const handleComment = async (e) => {
     e.preventDefault()
     if (!newComment.trim()) return
     const content = newComment.trim()
+    const parentId = replyTo ? replyTo.id : null
+    const parentUserId = replyTo ? replyTo.user_id : null
     setNewComment('')
-    const c = await addComment(currentUserId, log.id, content)
+    setReplyTo(null)
+    
+    const c = await addComment(currentUserId, log.id, content, log.user_id, parentId, parentUserId)
     if (c) setComments(p => [...p, c])
   }
 
@@ -373,9 +397,7 @@ function LogDetailModal({ log, currentUserId, onClose }) {
               <div style={{fontSize:'12px', color:'var(--color-text-tertiary)'}}>{new Date(log.log_date).toLocaleDateString()}</div>
             </div>
           </div>
-          <button onClick={onClose} style={{ background:'var(--color-bg)', border:'none', width:'32px', height:'32px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--color-text-secondary)', transition:'background 0.2s' }} onMouseEnter={e=>e.currentTarget.style.background='var(--color-border-light)'} onMouseLeave={e=>e.currentTarget.style.background='var(--color-bg)'}>
-            <X size={18} />
-          </button>
+          <button onClick={onClose} style={{ background:'var(--color-bg)', border:'none', width:'32px', height:'32px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--color-text-secondary)', transition:'background 0.2s' }} onMouseEnter={e=>e.currentTarget.style.background='var(--color-border-light)'} onMouseLeave={e=>e.currentTarget.style.background='var(--color-bg)'}><X size={18} /></button>
         </div>
 
         {/* Scrollable Content */}
@@ -392,8 +414,7 @@ function LogDetailModal({ log, currentUserId, onClose }) {
 
           {/* Actions Bar */}
           <div style={{ display:'flex', alignItems:'center', gap:'24px', paddingBottom:'20px', borderBottom:'1px solid var(--color-border-light)', marginBottom:'20px' }}>
-            <motion.button whileTap={{scale:0.8}} onClick={handleLike}
-              style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', padding:0, color: isLiked ? '#ef4444' : 'var(--color-text-tertiary)' }}>
+            <motion.button whileTap={{scale:0.8}} onClick={handleLike} style={{ display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none', cursor:'pointer', padding:0, color: isLiked ? '#ef4444' : 'var(--color-text-tertiary)' }}>
               <Heart fill={isLiked ? '#ef4444' : 'none'} size={22} />
               <span style={{ fontSize:'15px', fontWeight:500 }}>{likes > 0 ? likes : '赞'}</span>
             </motion.button>
@@ -412,18 +433,26 @@ function LogDetailModal({ log, currentUserId, onClose }) {
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:'20px' }}>
                 {comments.map(c => {
-                   const cHue = [...(c.users?.nickname||'匿名')].reduce((a,x)=>a+x.charCodeAt(0),0)%360
+                   const cHue = [...(c.users?.nickname||'A')].reduce((a,x)=>a+x.charCodeAt(0),0)%360
+                   // 查找父评论的昵称（如果是回复）
+                   const parentComment = c.parent_id ? comments.find(x => x.id === c.parent_id) : null
+                   
                    return (
-                    <div key={c.id} style={{ display:'flex', gap:'12px' }}>
-                      <div style={{width:'28px', height:'28px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#fff', background:`hsl(${cHue},65%,55%)`, flexShrink:0}}>
-                        {(c.users?.nickname||'匿名').charAt(0).toUpperCase()}
+                    <div key={c.id} style={{ display:'flex', gap:'12px', paddingLeft: c.parent_id ? '24px' : '0', position:'relative' }}>
+                      {c.parent_id && <div style={{ position:'absolute', left:'11px', top:'-20px', bottom:'15px', width:'2px', background:'var(--color-border-light)' }} />}
+                      <div style={{width:'28px', height:'28px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#fff', background:`hsl(${cHue},65%,55%)`, flexShrink:0, zIndex:2}}>
+                        {(c.users?.nickname||'A').charAt(0).toUpperCase()}
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ display:'flex', alignItems:'baseline', gap:'8px', marginBottom:'4px' }}>
                           <span style={{ fontSize:'13px', fontWeight:600, color:'var(--color-text)' }}>{c.users?.nickname||'匿名'}</span>
-                          <span style={{ fontSize:'11px', color:'var(--color-text-tertiary)' }}>{new Date(c.created_at).toLocaleString()}</span>
+                          {parentComment && <span style={{ fontSize:'12px', color:'var(--color-text-tertiary)' }}>回复 @{parentComment.users?.nickname}</span>}
+                          <span style={{ fontSize:'11px', color:'var(--color-text-tertiary)', marginLeft:'auto' }}>{new Date(c.created_at).toLocaleString()}</span>
                         </div>
-                        <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', lineHeight:1.5 }}>{c.content}</p>
+                        <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', lineHeight:1.5, marginBottom:'6px' }}>{c.content}</p>
+                        <button onClick={()=>setReplyTo({id: c.id, nickname: c.users?.nickname, user_id: c.user_id})} style={{ background:'none', border:'none', fontSize:'12px', color:'var(--color-accent)', cursor:'pointer', padding:0, display:'flex', alignItems:'center', gap:'4px' }}>
+                          <Reply size={12}/> 回复
+                        </button>
                       </div>
                     </div>
                   )
@@ -434,14 +463,21 @@ function LogDetailModal({ log, currentUserId, onClose }) {
         </div>
 
         {/* Comment Input */}
-        <form onSubmit={handleComment} style={{ padding:'16px 24px', background:'var(--color-bg)', borderTop:'1px solid var(--color-border-light)', display:'flex', gap:'12px', alignItems:'center' }}>
-          <input type="text" value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="写下你的评论..." maxLength={200}
-            style={{ flex:1, padding:'12px 16px', borderRadius:'24px', border:'1px solid var(--color-border)', outline:'none', fontSize:'14px', background:'var(--color-surface)', transition:'border-color 0.2s' }} onFocus={e=>e.target.style.borderColor='var(--color-accent)'} onBlur={e=>e.target.style.borderColor='var(--color-border)'}
-          />
-          <button type="submit" disabled={!newComment.trim()}
-            style={{ width:'40px', height:'40px', borderRadius:'50%', background:'var(--color-accent)', color:'#fff', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor: newComment.trim()?'pointer':'not-allowed', opacity: newComment.trim()?1:0.5, transition:'transform 0.1s' }} onMouseDown={e=>newComment.trim()&&(e.currentTarget.style.transform='scale(0.9)')} onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}>
-            <Send size={18} />
-          </button>
+        <form onSubmit={handleComment} style={{ padding:'16px 24px', background:'var(--color-bg)', borderTop:'1px solid var(--color-border-light)', display:'flex', flexDirection:'column', gap:'8px' }}>
+          {replyTo && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:'12px', color:'var(--color-accent)', padding:'0 8px' }}>
+              <span>正在回复 @{replyTo.nickname}</span>
+              <button type="button" onClick={()=>setReplyTo(null)} style={{ background:'none', border:'none', color:'var(--color-text-tertiary)', cursor:'pointer' }}><X size={14}/></button>
+            </div>
+          )}
+          <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+            <input type="text" value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder={replyTo ? `回复 @${replyTo.nickname}...` : "写下你的评论..."} maxLength={200}
+              style={{ flex:1, padding:'12px 16px', borderRadius:'24px', border:'1px solid var(--color-border)', outline:'none', fontSize:'14px', background:'var(--color-surface)', transition:'border-color 0.2s' }} onFocus={e=>e.target.style.borderColor='var(--color-accent)'} onBlur={e=>e.target.style.borderColor='var(--color-border)'}
+            />
+            <button type="submit" disabled={!newComment.trim()} style={{ width:'40px', height:'40px', borderRadius:'50%', background:'var(--color-accent)', color:'#fff', border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor: newComment.trim()?'pointer':'not-allowed', opacity: newComment.trim()?1:0.5, transition:'transform 0.1s' }} onMouseDown={e=>newComment.trim()&&(e.currentTarget.style.transform='scale(0.9)')} onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}>
+              <Send size={18} />
+            </button>
+          </div>
         </form>
       </motion.div>
     </div>
@@ -462,21 +498,23 @@ export default function App() {
   const [myRecords, setMyRecords] = useState([])
   const [todayRecord, setTodayRecord] = useState(null)
   const [feed, setFeed] = useState([])
+  const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedLog, setSelectedLog] = useState(null) // Modal State
+  const [selectedLog, setSelectedLog] = useState(null)
 
   const todayDate = new Date().toISOString().slice(0,10)
 
   const refreshData = useCallback(async()=>{
     if (!user) return
     setLoading(true)
-    const [records, today, publicFeed] = await Promise.all([
-      getMyRecords(user.id), getMyTodayRecord(user.id), getPublicFeed(50),
+    const [records, today, publicFeed, notifs] = await Promise.all([
+      getMyRecords(user.id), getMyTodayRecord(user.id), getPublicFeed(50), getNotifications(user.id)
     ])
     setMyRecords(records)
     setTodayRecord(today)
     setFeed(publicFeed)
+    setNotifications(notifs)
     setLoading(false)
   },[user])
 
@@ -501,6 +539,14 @@ export default function App() {
     await refreshData()
   },[todayRecord,refreshData])
 
+  const handleReadInbox = async () => {
+    const unread = notifications.some(n => !n.is_read)
+    if (unread) {
+      await markNotificationsAsRead(user.id)
+      setNotifications(prev => prev.map(n => ({...n, is_read: true})))
+    }
+  }
+
   if (!user) return <NicknameGate onLogin={handleLogin}/>
 
   if (loading) return (
@@ -511,13 +557,12 @@ export default function App() {
 
   return (
     <div style={{minHeight:'100vh',padding:'clamp(40px,5vw,64px) 16px'}}>
-      <HeroSection streak={streak} nickname={user.nickname} onLogout={handleLogout}/>
+      <HeroSection streak={streak} nickname={user.nickname} onLogout={handleLogout} notifications={notifications} onReadInbox={handleReadInbox} />
       <TodayCard todayRecord={todayRecord} onSubmit={handleSubmit} onDelete={handleDelete} submitting={submitting}/>
-      <HistoryGrid records={myRecords} todayDate={todayDate}/>
+      <HistoryGrid records={myRecords} todayDate={todayDate} onLogClick={setSelectedLog} currentUser={user} />
       <PublicFeed feed={feed} currentUserId={user.id} onLogClick={setSelectedLog}/>
       <Footer/>
 
-      {/* Modal Render with Shared Layout Animation */}
       <AnimatePresence>
         {selectedLog && (
           <LogDetailModal 

@@ -4,35 +4,14 @@ import { supabase } from './supabase'
    User
    ================================================================ */
 
-/**
- * 查找或创建用户（昵称唯一）
- * @returns {{ id: string, nickname: string } | null}
- */
 export async function findOrCreateUser(nickname) {
-  // 先查
-  const { data: existing } = await supabase
-    .from('users')
-    .select('id, nickname')
-    .eq('nickname', nickname)
-    .maybeSingle()
-
+  const { data: existing } = await supabase.from('users').select('id, nickname').eq('nickname', nickname).maybeSingle()
   if (existing) return existing
 
-  // 不存在则创建
-  const { data: created, error } = await supabase
-    .from('users')
-    .insert({ nickname })
-    .select('id, nickname')
-    .single()
-
+  const { data: created, error } = await supabase.from('users').insert({ nickname }).select('id, nickname').single()
   if (error) {
-    // 并发冲突 → 再查一次
     if (error.code === '23505') {
-      const { data } = await supabase
-        .from('users')
-        .select('id, nickname')
-        .eq('nickname', nickname)
-        .single()
+      const { data } = await supabase.from('users').select('id, nickname').eq('nickname', nickname).single()
       return data
     }
     console.error('创建用户失败:', error)
@@ -45,64 +24,28 @@ export async function findOrCreateUser(nickname) {
    Reading Logs — 个人
    ================================================================ */
 
-/** 获取某用户的所有记录（按日期降序） */
 export async function getMyRecords(userId) {
-  const { data, error } = await supabase
-    .from('reading_logs')
-    .select('*')
-    .eq('user_id', userId)
-    .order('log_date', { ascending: false })
-
-  if (error) {
-    console.error('获取记录失败:', error)
-    return []
-  }
+  const { data, error } = await supabase.from('reading_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false })
+  if (error) { console.error('获取记录失败:', error); return [] }
   return data ?? []
 }
 
-/** 获取某用户今天的记录 */
 export async function getMyTodayRecord(userId) {
   const today = new Date().toISOString().slice(0, 10)
-  const { data } = await supabase
-    .from('reading_logs')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('log_date', today)
-    .maybeSingle()
-
+  const { data } = await supabase.from('reading_logs').select('*').eq('user_id', userId).eq('log_date', today).maybeSingle()
   return data ?? null
 }
 
-/** 打卡 */
 export async function submitLog(userId, { title, author, takeaway }) {
   const today = new Date().toISOString().slice(0, 10)
-  const { data, error } = await supabase
-    .from('reading_logs')
-    .upsert(
-      { user_id: userId, title, author, takeaway, log_date: today },
-      { onConflict: 'user_id,log_date' },
-    )
-    .select()
-    .single()
-
-  if (error) {
-    console.error('打卡失败:', error)
-    return null
-  }
+  const { data, error } = await supabase.from('reading_logs').upsert({ user_id: userId, title, author, takeaway, log_date: today }, { onConflict: 'user_id,log_date' }).select().single()
+  if (error) { console.error('打卡失败:', error); return null }
   return data
 }
 
-/** 撤销打卡 */
 export async function deleteLog(logId) {
-  const { error } = await supabase
-    .from('reading_logs')
-    .delete()
-    .eq('id', logId)
-
-  if (error) {
-    console.error('删除失败:', error)
-    return false
-  }
+  const { error } = await supabase.from('reading_logs').delete().eq('id', logId)
+  if (error) { console.error('删除失败:', error); return false }
   return true
 }
 
@@ -110,21 +53,9 @@ export async function deleteLog(logId) {
    Public Feed — 公开广场
    ================================================================ */
 
-/**
- * 获取所有人的最新打卡记录
- * 联表查用户昵称
- */
 export async function getPublicFeed(limit = 30) {
-  const { data, error } = await supabase
-    .from('reading_logs')
-    .select('*, users(nickname)')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error) {
-    console.error('获取广场数据失败:', error)
-    return []
-  }
+  const { data, error } = await supabase.from('reading_logs').select('*, users!reading_logs_user_id_fkey(nickname)').order('created_at', { ascending: false }).limit(limit)
+  if (error) { console.error('获取广场数据失败:', error); return [] }
   return data ?? []
 }
 
@@ -132,27 +63,20 @@ export async function getPublicFeed(limit = 30) {
    Streak 计算
    ================================================================ */
 
-/** 根据用户的记录列表计算连续天数 */
 export function calcStreakFromLogs(logs) {
   if (!logs || logs.length === 0) return 0
-
   const dateSet = new Set(logs.map((l) => l.log_date))
   const today = new Date()
   const check = new Date(today)
-
   const toKey = (d) => d.toISOString().slice(0, 10)
 
-  // 如果今天没记录，从昨天开始
-  if (!dateSet.has(toKey(check))) {
-    check.setDate(check.getDate() - 1)
-  }
-
+  if (!dateSet.has(toKey(check))) check.setDate(check.getDate() - 1)
+  
   let streak = 0
   while (dateSet.has(toKey(check))) {
     streak++
     check.setDate(check.getDate() - 1)
   }
-
   return streak
 }
 
@@ -160,78 +84,81 @@ export function calcStreakFromLogs(logs) {
    Interactions (Likes & Comments)
    ================================================================ */
 
-/**
- * 切换点赞状态
- */
-export async function toggleLike(userId, logId) {
-  // 先查是否已点赞
-  const { data: existing } = await supabase
-    .from('likes')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('log_id', logId)
-    .maybeSingle()
+export async function toggleLike(userId, logId, logOwnerId) {
+  const { data: existing } = await supabase.from('likes').select('id').eq('user_id', userId).eq('log_id', logId).maybeSingle()
 
   if (existing) {
-    // 取消赞
     await supabase.from('likes').delete().eq('id', existing.id)
     return false
   } else {
-    // 点赞
     await supabase.from('likes').insert({ user_id: userId, log_id: logId })
+    // 如果给别人点赞，发通知
+    if (userId !== logOwnerId) {
+      await supabase.from('notifications').insert({
+        user_id: logOwnerId, actor_id: userId, type: 'like', log_id: logId
+      })
+    }
     return true
   }
 }
 
-/**
- * 获取单条记录的互动数据（点赞数、是否已赞、评论列表）
- */
 export async function getLogInteractions(logId, userId) {
-  // 1. 获取点赞总数
-  const { count: likeCount } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('log_id', logId)
-
-  // 2. 当前用户是否已赞
+  const { count: likeCount } = await supabase.from('likes').select('*', { count: 'exact', head: true }).eq('log_id', logId)
+  
   let isLiked = false
   if (userId) {
-    const { data } = await supabase
-      .from('likes')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('log_id', logId)
-      .maybeSingle()
+    const { data } = await supabase.from('likes').select('id').eq('user_id', userId).eq('log_id', logId).maybeSingle()
     isLiked = !!data
   }
 
-  // 3. 获取评论列表 (联表查询用户昵称)
   const { data: comments } = await supabase
     .from('comments')
-    .select('id, content, created_at, user_id, users(nickname)')
+    .select('id, content, created_at, user_id, parent_id, users!comments_user_id_fkey(nickname)')
     .eq('log_id', logId)
     .order('created_at', { ascending: true })
 
-  return {
-    likeCount: likeCount || 0,
-    isLiked,
-    comments: comments || []
-  }
+  return { likeCount: likeCount || 0, isLiked, comments: comments || [] }
 }
 
-/**
- * 发布评论
- */
-export async function addComment(userId, logId, content) {
+export async function addComment(userId, logId, content, logOwnerId, parentId = null, parentOwnerId = null) {
   const { data, error } = await supabase
     .from('comments')
-    .insert({ user_id: userId, log_id: logId, content })
-    .select('*, users(nickname)')
+    .insert({ user_id: userId, log_id: logId, content, parent_id: parentId })
+    .select('*, users!comments_user_id_fkey(nickname)')
     .single()
 
-  if (error) {
-    console.error('评论失败:', error)
-    return null
+  if (error) { console.error('评论失败:', error); return null }
+
+  // 发通知：如果是回复别人，通知被回复的人；如果是普通评论，通知贴主
+  if (parentId && userId !== parentOwnerId) {
+    await supabase.from('notifications').insert({
+      user_id: parentOwnerId, actor_id: userId, type: 'reply', log_id: logId, content: content.substring(0, 50)
+    })
+  } else if (!parentId && userId !== logOwnerId) {
+    await supabase.from('notifications').insert({
+      user_id: logOwnerId, actor_id: userId, type: 'comment', log_id: logId, content: content.substring(0, 50)
+    })
   }
+
   return data
+}
+
+/* ================================================================
+   Notifications (Inbox)
+   ================================================================ */
+
+export async function getNotifications(userId) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, type, content, is_read, created_at, log_id, actor:users!notifications_actor_id_fkey(nickname), log:reading_logs!notifications_log_id_fkey(title)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) { console.error('获取通知失败:', error); return [] }
+  return data ?? []
+}
+
+export async function markNotificationsAsRead(userId) {
+  await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false)
 }
