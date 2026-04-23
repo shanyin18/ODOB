@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* ===== Design Tokens ===== */
+:root {
+  --color-bg: #f8f7f4;
+  --color-surface: #ffffff;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+  --color-accent: #e8927c;
+  --color-accent-hover: #d4785f;
+  --color-accent-soft: #fef0ec;
+  --color-border: #e5e5e5;
+  --color-border-light: #f0efeb;
+  --color-streak-gold: #f59e0b;
+  --color-success: #10b981;
+  --color-success-soft: #ecfdf5;
+  --font-serif: 'Noto Serif SC', 'Georgia', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ===== Base ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ===== Custom scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
+/* ===== Confetti / Celebration ===== */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.confetti-piece {
+  position: fixed;
+  top: -10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti-fall 2.5s ease-in forwards;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* ===== Glow pulse on card after check-in ===== */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(232, 146, 124, 0);
+  }
+  50% {
+    box-shadow: 0 0 30px 10px rgba(232, 146, 124, 0.25);
+  }
+}
+
+.glow-animate {
+  animation: glow-pulse 1.5s ease-in-out 2;
+}
+
+/* ===== Streak fire wobble ===== */
+@keyframes fire-wobble {
+  0%, 100% { transform: rotate(-3deg) scale(1); }
+  25% { transform: rotate(3deg) scale(1.1); }
+  50% { transform: rotate(-2deg) scale(1.05); }
+  75% { transform: rotate(2deg) scale(1.08); }
+}
+
+.fire-icon {
+  display: inline-block;
+  animation: fire-wobble 1.5s ease-in-out infinite;
+}
