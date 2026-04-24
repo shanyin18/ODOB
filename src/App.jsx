@@ -86,14 +86,29 @@ function NicknameGate({ onLogin }) {
       alignItems: 'center', 
       justifyContent: 'center', 
       padding: '16px',
-      backgroundImage: 'url(/bg-universe.png)',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      backgroundColor: '#08060d',
       position: 'relative',
       overflow: 'hidden'
     }}>
+      {/* 视频背景：利用宽高计算完美裁切掉16:9视频两侧的黑框，只保留中间的1:1内容 */}
+      <video 
+        autoPlay loop muted playsInline
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          height: 'max(100vw, 100vh)',
+          width: 'calc(max(100vw, 100vh) * 16 / 9)',
+          objectFit: 'cover',
+          zIndex: 0
+        }}
+      >
+        <source src="/bg-video.mp4" type="video/mp4" />
+      </video>
+
       {/* 模糊遮罩 */}
-      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8, 6, 13, 0.4)', backdropFilter: 'blur(10px)' }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8, 6, 13, 0.3)', backdropFilter: 'blur(8px)', zIndex: 0 }} />
 
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         
