@@ -53,6 +53,19 @@ function NicknameGate({ onLogin }) {
   const [nick, setNick] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [quoteIdx, setQuoteIdx] = useState(0)
+
+  const quotes = useMemo(() => [
+    { text: "阅读是一座随身携带的避难所。", author: "毛姆" },
+    { text: "吾生也有涯，而知也无涯。", author: "庄子" },
+    { text: "我们在书本中体验千百种人生。", author: "乔治·R·R·马丁" },
+    { text: "书籍是屹立在时间的汪洋大海中的灯塔。", author: "惠普尔" }
+  ], [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setQuoteIdx(i => (i + 1) % quotes.length), 5000)
+    return () => clearInterval(timer)
+  }, [quotes])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -67,19 +80,47 @@ function NicknameGate({ onLogin }) {
   }
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
-        style={{ maxWidth:'380px', width:'100%', borderRadius:'20px', padding:'40px 32px', backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)', boxShadow:'0 4px 24px rgba(0,0,0,0.06)', textAlign:'center' }}>
-        <h1 style={{ fontSize:'28px', fontWeight:700, fontFamily:'var(--font-serif)', color:'var(--color-text)', marginBottom:'8px' }}>一日一书</h1>
-        <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginBottom:'32px' }}>输入昵称，开始你的阅读之旅</p>
-        <form onSubmit={handleSubmit}>
-          <input type="text" value={nick} onChange={e=>setNick(e.target.value)} placeholder="你的昵称" required maxLength={20} style={{ ...inputStyle, textAlign:'center', fontSize:'16px', marginBottom:'16px' }} onFocus={e=>(e.target.style.borderColor='var(--color-accent)')} onBlur={e=>(e.target.style.borderColor='var(--color-border)')}/>
-          {error && <p style={{ fontSize:'12px', color:'#ef4444', marginBottom:'12px' }}>{error}</p>}
-          <motion.button type="submit" whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }} disabled={loading} style={{ width:'100%', padding:'12px', borderRadius:'12px', fontSize:'14px', fontWeight:600, color:'#fff', cursor:'pointer', border:'none', fontFamily:'inherit', background:'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)', boxShadow:'0 2px 8px rgba(232,146,124,0.35)', opacity: loading?0.6:1 }}>
-            {loading ? '加入中...' : '进入广场'}
-          </motion.button>
-        </form>
-      </motion.div>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      padding: '16px',
+      backgroundImage: 'url(/bg-universe.png)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 模糊遮罩 */}
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(8, 6, 13, 0.4)', backdropFilter: 'blur(10px)' }} />
+
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+        
+        {/* 名言展示区 */}
+        <div style={{ marginBottom: '40px', textAlign: 'center', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <AnimatePresence mode="wait">
+            <motion.div key={quoteIdx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.8 }}>
+              <p style={{ fontSize: '18px', color: '#fff', fontWeight: 300, letterSpacing: '2px', textShadow: '0 2px 8px rgba(0,0,0,0.8)', fontFamily: 'var(--font-serif)' }}>"{quotes[quoteIdx].text}"</p>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginTop: '8px', letterSpacing: '1px', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>—— {quotes[quoteIdx].author}</p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* 登录框（增加玻璃拟态设计） */}
+        <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
+          style={{ maxWidth:'380px', width:'100%', borderRadius:'24px', padding:'40px 32px', background:'rgba(255, 255, 255, 0.08)', backdropFilter:'blur(24px)', border:'1px solid rgba(255, 255, 255, 0.15)', boxShadow:'0 16px 40px rgba(0,0,0,0.4)', textAlign:'center' }}>
+          <h1 style={{ fontSize:'32px', fontWeight:700, fontFamily:'var(--font-serif)', color:'#fff', marginBottom:'8px', textShadow:'0 2px 4px rgba(0,0,0,0.3)' }}>一日一书</h1>
+          <p style={{ fontSize:'14px', color:'rgba(255,255,255,0.7)', marginBottom:'32px' }}>输入昵称，开始你的阅读之旅</p>
+          <form onSubmit={handleSubmit}>
+            <input type="text" value={nick} onChange={e=>setNick(e.target.value)} placeholder="你的昵称" required maxLength={20} style={{ ...inputStyle, textAlign:'center', fontSize:'16px', marginBottom:'16px', background:'rgba(0,0,0,0.25)', border:'1px solid rgba(255,255,255,0.2)', color:'#fff', backdropFilter:'blur(4px)' }} onFocus={e=>(e.target.style.borderColor='rgba(255,255,255,0.5)')} onBlur={e=>(e.target.style.borderColor='rgba(255,255,255,0.2)')}/>
+            {error && <p style={{ fontSize:'12px', color:'#ef4444', marginBottom:'12px' }}>{error}</p>}
+            <motion.button type="submit" whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }} disabled={loading} style={{ width:'100%', padding:'12px', borderRadius:'12px', fontSize:'14px', fontWeight:600, color:'#fff', cursor:'pointer', border:'none', fontFamily:'inherit', background:'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%)', backdropFilter:'blur(10px)', borderTop:'1px solid rgba(255,255,255,0.3)', borderLeft:'1px solid rgba(255,255,255,0.3)', boxShadow:'0 4px 16px rgba(0,0,0,0.2)', opacity: loading?0.6:1, transition: 'background 0.3s' }}>
+              {loading ? '进入中...' : '进入宇宙'}
+            </motion.button>
+          </form>
+        </motion.div>
+      </div>
     </div>
   )
 }
