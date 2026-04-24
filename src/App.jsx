@@ -97,8 +97,8 @@ function NicknameGate({ onLogin }) {
 
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         
-        {/* 名言展示区 */}
-        <div style={{ marginBottom: '40px', textAlign: 'center', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+        {/* 名言展示区（绝对定位，悬浮在上方，不占用排版空间） */}
+        <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '40px', textAlign: 'center', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', pointerEvents: 'none' }}>
           <AnimatePresence mode="wait">
             <motion.div key={quoteIdx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.8 }}>
               <p style={{ fontSize: '18px', color: '#fff', fontWeight: 300, letterSpacing: '2px', textShadow: '0 2px 8px rgba(0,0,0,0.8)', fontFamily: 'var(--font-serif)' }}>"{quotes[quoteIdx].text}"</p>
