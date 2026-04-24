@@ -70,7 +70,6 @@ function NicknameGate({ onLogin }) {
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
       <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
         style={{ maxWidth:'380px', width:'100%', borderRadius:'20px', padding:'40px 32px', backgroundColor:'var(--color-surface)', border:'1px solid var(--color-border-light)', boxShadow:'0 4px 24px rgba(0,0,0,0.06)', textAlign:'center' }}>
-        <div style={{ fontSize:'48px', marginBottom:'16px' }}>📖</div>
         <h1 style={{ fontSize:'28px', fontWeight:700, fontFamily:'var(--font-serif)', color:'var(--color-text)', marginBottom:'8px' }}>一日一书</h1>
         <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginBottom:'32px' }}>输入昵称，开始你的阅读之旅</p>
         <form onSubmit={handleSubmit}>
@@ -148,7 +147,7 @@ function HeroSection({ streak, nickname, onLogout, notifications, onReadInbox })
           </AnimatePresence>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-          <span style={{ fontSize:'13px', color:'var(--color-text-secondary)', fontWeight:500 }}>👋 {nickname}</span>
+          <span style={{ fontSize:'13px', color:'var(--color-text-secondary)', fontWeight:500 }}>{nickname}</span>
           <button onClick={onLogout} title="退出登录" style={{ background:'none', border:'none', cursor:'pointer', color:'var(--color-text-tertiary)', display:'flex', alignItems:'center', padding:'4px' }}>
             <LogOut size={16} />
           </button>
@@ -161,8 +160,8 @@ function HeroSection({ streak, nickname, onLogout, notifications, onReadInbox })
       
       <motion.div key={streak} initial={{scale:0.8,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:300,damping:20}}
         style={{ display:'inline-flex', alignItems:'center', gap:'8px', marginTop:'24px', padding:'8px 20px', borderRadius:'9999px', fontSize:'14px', fontWeight:600, background: streak>0 ? 'linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)' : 'var(--color-surface)', color: streak>0 ? '#92400e' : 'var(--color-text-secondary)', border: streak>0 ? '1px solid #fde68a' : '1px solid var(--color-border)' }}>
-        {streak>0 ? (<><span className="fire-icon" style={{fontSize:'18px'}}>🔥</span><span>连续阅读 <strong>{streak}</strong> 天</span></>)
-          : (<><BookOpen size={16}/><span>今天还没有打卡哦</span></>)}
+        {streak>0 ? (<span>连续阅读 <strong>{streak}</strong> 天</span>)
+          : (<span>今天还没有打卡哦</span>)}
       </motion.div>
     </motion.header>
   )
@@ -192,7 +191,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',width:'40px',height:'40px',borderRadius:'50%',backgroundColor:'var(--color-success-soft)'}}>
                 <Check size={20} style={{color:'var(--color-success)'}}/>
               </div>
-              <div><p style={{fontSize:'15px',fontWeight:600,color:'var(--color-text)'}}>今日已完成阅读 ✨</p><p style={{fontSize:'12px',color:'var(--color-text-tertiary)'}}>阅读是最好的自我进化</p></div>
+              <div><p style={{fontSize:'15px',fontWeight:600,color:'var(--color-text)'}}>今日已完成阅读</p><p style={{fontSize:'12px',color:'var(--color-text-tertiary)'}}>阅读是最好的自我进化</p></div>
             </div>
             <div style={{borderRadius:'12px',padding:'20px',backgroundColor:'var(--color-bg)',border:'1px solid var(--color-border-light)'}}>
               <h3 style={{fontSize:'20px',fontWeight:700,marginBottom:'4px',fontFamily:'var(--font-serif)',color:'var(--color-text)'}}>《{todayRecord.title}》</h3>
@@ -208,7 +207,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
           </motion.div>
         ) : (
           <motion.form key="form" initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.95}} transition={{duration:0.3}} onSubmit={handleSubmit}>
-            <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'24px'}}><Pencil size={18} style={{color:'var(--color-accent)'}}/><h2 style={{fontSize:'17px',fontWeight:600,color:'var(--color-text)'}}>记录今日阅读</h2></div>
+            <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'24px'}}><h2 style={{fontSize:'17px',fontWeight:600,color:'var(--color-text)'}}>记录今日阅读</h2></div>
             <div style={{marginBottom:'16px'}}>
               <label style={{display:'block',fontSize:'12px',fontWeight:500,marginBottom:'6px',color:'var(--color-text-secondary)'}}>书名 <span style={{color:'var(--color-accent)'}}>*</span></label>
               <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="你今天读了什么？" required style={inputStyle} onFocus={e=>(e.target.style.borderColor='var(--color-accent)')} onBlur={e=>(e.target.style.borderColor='var(--color-border)')}/>
@@ -222,7 +221,7 @@ function TodayCard({ todayRecord, onSubmit, onDelete, submitting }) {
               <textarea value={takeaway} onChange={e=>setTakeaway(e.target.value)} placeholder="一句话记录你的收获…" rows={3} style={{...inputStyle,resize:'none'}} onFocus={e=>(e.target.style.borderColor='var(--color-accent)')} onBlur={e=>(e.target.style.borderColor='var(--color-border)')}/>
             </div>
             <motion.button type="submit" whileHover={{scale:1.02}} whileTap={{scale:0.97}} disabled={submitting} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',padding:'12px',borderRadius:'12px',fontSize:'14px',fontWeight:600,color:'#fff',cursor:'pointer',border:'none',fontFamily:'inherit',background:'linear-gradient(135deg,var(--color-accent) 0%,var(--color-accent-hover) 100%)',boxShadow:'0 2px 8px rgba(232,146,124,0.35)',opacity:submitting?0.6:1}}>
-              <Sparkles size={16}/>{submitting?'提交中...':'完成阅读'}
+              {submitting?'提交中...':'完成阅读'}
             </motion.button>
           </motion.form>
         )}
@@ -263,7 +262,6 @@ function HistoryGrid({ records, todayDate, onLogClick, currentUser }) {
   return (
     <motion.section initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.4,delay:0.3}} style={{maxWidth:'56rem',margin:'0 auto 3rem'}}>
       <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'24px'}}>
-        <BookOpen size={18} style={{color:'var(--color-text-secondary)'}}/>
         <h2 style={{fontSize:'17px',fontWeight:600,color:'var(--color-text)'}}>我的书架</h2>
         <span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'9999px',backgroundColor:'var(--color-accent-soft)',color:'var(--color-accent)'}}>{history.length} 本</span>
       </div>
@@ -317,7 +315,6 @@ function PublicFeed({ feed, currentUserId, onLogClick }) {
   return (
     <motion.section initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.4,delay:0.4}} style={{maxWidth:'56rem',margin:'0 auto 3rem'}}>
       <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'24px'}}>
-        <Users size={18} style={{color:'var(--color-text-secondary)'}}/>
         <h2 style={{fontSize:'17px',fontWeight:600,color:'var(--color-text)'}}>阅读广场</h2>
         <span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'9999px',backgroundColor:'#ede9fe',color:'#7c3aed'}}>{others.length} 条</span>
       </div>
