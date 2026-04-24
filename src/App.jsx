@@ -93,6 +93,7 @@ function NicknameGate({ onLogin }) {
       {/* 视频背景：利用宽高计算完美裁切掉16:9视频两侧的黑框，只保留中间的1:1内容 */}
       <video 
         autoPlay loop muted playsInline
+        className="video-bg-animate"
         style={{
           position: 'absolute',
           top: '50%',

@@ -106,3 +106,13 @@ body {
   display: inline-block;
   animation: fire-wobble 1.5s ease-in-out infinite;
 }
+
+/* 视频循环呼吸感动画，解决衔接生硬问题 */
+@keyframes video-fade {
+  0%, 100% { opacity: 0.1; }
+  5%, 95% { opacity: 0.8; }
+}
+
+.video-bg-animate {
+  animation: video-fade 8s ease-in-out infinite;
+}
